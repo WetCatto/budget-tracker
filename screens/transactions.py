@@ -69,7 +69,7 @@ class TransactionsPane(Vertical):
     def refresh_data(self) -> None:
         month_name = calendar.month_name[self._month]
         self.query_one("#month-label", Static).update(
-            Text(f"  {month_name} {self._year}   < prev month   > next month", style="bold")
+            Text(f"  {month_name} {self._year}   , prev month   . next month", style="bold")
         )
         table = self.query_one("#tx-table", DataTable)
         table.clear()

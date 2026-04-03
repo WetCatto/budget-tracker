@@ -2,7 +2,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Label
+from textual.widgets import Button, Input, Label, Static
 
 import db
 
@@ -30,8 +30,12 @@ class BudgetModal(ModalScreen[bool]):
         margin-top: 1;
         color: $text-muted;
     }
+    #shortcut-hint {
+        color: $text-muted;
+        margin-top: 1;
+    }
     #buttons {
-        margin-top: 2;
+        margin-top: 1;
         height: auto;
         align: right middle;
     }
@@ -68,6 +72,7 @@ class BudgetModal(ModalScreen[bool]):
                 id="inp-limit",
                 placeholder="e.g. 5000",
             )
+            yield Static("Enter → next field   Esc → cancel", id="shortcut-hint")
             with Horizontal(id="buttons"):
                 yield Button("Cancel", variant="default", id="btn-cancel")
                 yield Button("Save", variant="primary", id="btn-save")

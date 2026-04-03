@@ -45,15 +45,16 @@ class ChartsPane(Vertical):
         margin-bottom: 1;
     }
     #chart-category {
-        height: 11;
+        height: auto;
         border: round $primary;
         padding: 0 1;
         margin-bottom: 2;
     }
     #chart-monthly {
-        height: 11;
+        height: auto;
         border: round $accent;
         padding: 0 1;
+        margin-bottom: 1;
     }
     """
 
@@ -74,7 +75,7 @@ class ChartsPane(Vertical):
     def refresh_data(self) -> None:
         month_name = calendar.month_name[self._month]
         self.query_one("#month-label", Static).update(
-            Text(f"  Charts — {month_name} {self._year}   < prev month   > next month", style="bold")
+            Text(f"  Charts — {month_name} {self._year}   , prev month   . next month", style="bold")
         )
 
         rows = db.get_spending_by_category(self._year, self._month)

@@ -42,7 +42,7 @@ class SummaryPane(Vertical):
     def refresh_data(self) -> None:
         month_name = calendar.month_name[self._month]
         self.query_one("#month-label", Static).update(
-            Text(f"  Monthly Summary — {month_name} {self._year}   < prev month   > next month", style="bold")
+            Text(f"  Monthly Summary — {month_name} {self._year}   , prev month   . next month", style="bold")
         )
 
         rows = db.get_monthly_summary(self._year, self._month)

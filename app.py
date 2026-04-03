@@ -28,8 +28,8 @@ class BudgetApp(App):
         Binding("d", "delete",                     "Delete",       show=True, priority=True),
         Binding("n", "add_limit",                  "Add Limit",    show=True, priority=True),
         Binding("s", "set_daily",                  "Daily Budget", show=True, priority=True),
-        Binding("<", "prev_month",                 "< Prev",       show=True, priority=True),
-        Binding(">", "next_month",                 "Next >",       show=True, priority=True),
+        Binding("comma",      "prev_month", ", Prev Month", show=True, priority=True),
+        Binding("full_stop",  "next_month", ". Next Month", show=True, priority=True),
         Binding("q", "quit",                       "Quit",         show=True, priority=True),
     ]
 
@@ -70,7 +70,7 @@ class BudgetApp(App):
                 yield BudgetsPane()
         yield Static(
             Text(" [1-5] Switch tab  [a] Add  [e] Edit  [d] Delete"
-                 "  [< >] Month  [n] Budget  [s] Daily budget  [q] Quit"),
+                 "  [,] Prev month  [.] Next month  [n] Budget  [s] Daily  [q] Quit"),
             id="footer-bar",
         )
 
