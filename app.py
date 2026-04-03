@@ -16,7 +16,7 @@ class BudgetApp(App):
     TITLE = "Budget Tracker"
     SUB_TITLE = "Local & Offline"
 
-    # priority=True on all bindings so they fire before any focused widget
+    # priority=True so all bindings fire before any focused widget (e.g. DataTable)
     BINDINGS = [
         Binding("1", "switch_tab('dashboard')",    "Dashboard",    show=True, priority=True),
         Binding("2", "switch_tab('transactions')", "Transactions", show=True, priority=True),
@@ -24,6 +24,10 @@ class BudgetApp(App):
         Binding("4", "switch_tab('charts')",       "Charts",       show=True, priority=True),
         Binding("5", "switch_tab('budgets')",      "Budgets",      show=True, priority=True),
         Binding("a", "add_transaction",            "Add",          show=True, priority=True),
+        Binding("e", "edit",                       "Edit",         show=True, priority=True),
+        Binding("d", "delete",                     "Delete",       show=True, priority=True),
+        Binding("n", "add_limit",                  "Add Limit",    show=True, priority=True),
+        Binding("s", "set_daily",                  "Daily Budget", show=True, priority=True),
         Binding("<", "prev_month",                 "< Prev",       show=True, priority=True),
         Binding(">", "next_month",                 "Next >",       show=True, priority=True),
         Binding("q", "quit",                       "Quit",         show=True, priority=True),
@@ -105,6 +109,30 @@ class BudgetApp(App):
                 getattr(self.query_one(cls), action)()
             except Exception:
                 pass
+
+    # ── Edit / Delete (routed by active tab) ─────────────────────────────────
+
+    def action_edit(self) -> None:
+        active = self.query_one(TabbedContent).active
+        if active == "transactions":
+            self.query_one(TransactionsPane).action_edit_selected()
+        elif active == "budgets":
+            self.query_one(BudgetsPane).action_edit_selected()
+
+    def action_delete(self) -> None:
+        active = self.query_one(TabbedContent).active
+        if active == "transactions":
+            self.query_one(TransactionsPane).action_delete_selected()
+        elif active == "budgets":
+            self.query_one(BudgetsPane).action_delete_selected()
+
+    def action_add_limit(self) -> None:
+        if self.query_one(TabbedContent).active == "budgets":
+            self.query_one(BudgetsPane).action_add_budget()
+
+    def action_set_daily(self) -> None:
+        if self.query_one(TabbedContent).active == "budgets":
+            self.query_one(BudgetsPane).action_set_daily()
 
     # ── Add transaction ───────────────────────────────────────────────────────
 

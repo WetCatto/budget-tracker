@@ -50,6 +50,22 @@ class TransactionsPane(Vertical):
         table.add_columns("Date", "Description", "Category", "Amount")
         self.refresh_data()
 
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Enter on a row opens the edit modal."""
+        tx_id = int(event.row_key.value)
+        tx = db.get_transaction(tx_id)
+        if tx is None:
+            return
+
+        def on_dismiss(saved: bool) -> None:
+            if saved:
+                self.refresh_data()
+                self.app.query_one("DashboardPane").refresh_data()
+                self.app.query_one("SummaryPane").refresh_data()
+                self.app.query_one("ChartsPane").refresh_data()
+
+        self.app.push_screen(AddEditModal(transaction=tx), on_dismiss)
+
     def refresh_data(self) -> None:
         month_name = calendar.month_name[self._month]
         self.query_one("#month-label", Static).update(
