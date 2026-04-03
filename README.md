@@ -17,21 +17,21 @@ venv/bin/pip install -r requirements.txt
 venv/bin/python main.py
 ```
 
-## Navigation
+## Controls
+
+The controls bar at the bottom of the app shows all available keys at a glance.
 
 | Key | Action |
 |-----|--------|
-| `1` | Dashboard |
-| `2` | Transactions |
-| `3` | Monthly Summary |
-| `4` | Charts |
-| `5` | Budgets |
+| `1`–`5` | Switch tabs |
 | `a` | Add transaction (any screen) |
 | `e` | Edit selected row |
 | `d` | Delete selected row |
 | `[` / `]` | Previous / next month |
 | `n` | Add budget limit (Budgets screen) |
 | `q` | Quit |
+
+In the add/edit form, press **Enter** to advance to the next field. On the last field, Enter saves the transaction.
 
 ## Screens
 

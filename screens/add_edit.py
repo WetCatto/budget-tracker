@@ -71,11 +71,25 @@ class AddEditModal(ModalScreen[bool]):
                 yield Button("Cancel", variant="default", id="btn-cancel")
                 yield Button("Save", variant="primary", id="btn-save")
 
+    _FIELD_ORDER = ["inp-date", "inp-desc", "inp-amount", "inp-cat"]
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        try:
+            idx = self._FIELD_ORDER.index(event.input.id)
+        except ValueError:
+            return
+        if idx < len(self._FIELD_ORDER) - 1:
+            self.query_one(f"#{self._FIELD_ORDER[idx + 1]}", Input).focus()
+        else:
+            self._save()
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-cancel":
             self.dismiss(False)
-            return
+        elif event.button.id == "btn-save":
+            self._save()
 
+    def _save(self) -> None:
         date_val = self.query_one("#inp-date", Input).value.strip()
         desc_val = self.query_one("#inp-desc", Input).value.strip()
         amount_str = self.query_one("#inp-amount", Input).value.strip()

@@ -1,6 +1,6 @@
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Header, TabbedContent, TabPane
+from textual.widgets import Header, Static, TabbedContent, TabPane
 
 import db
 from screens.add_edit import AddEditModal
@@ -32,6 +32,13 @@ class BudgetApp(App):
     TabPane {
         padding: 0;
     }
+    #footer-bar {
+        height: 1;
+        background: $primary;
+        color: $text;
+        content-align: left middle;
+        padding: 0 1;
+    }
     """
 
     def on_mount(self) -> None:
@@ -50,7 +57,10 @@ class BudgetApp(App):
                 yield ChartsPane()
             with TabPane("5 Budgets", id="budgets"):
                 yield BudgetsPane()
-        yield Footer()
+        yield Static(
+            " [1-5] Tab  [a] Add  [e] Edit  [d] Delete  [[] /] Month  [n] Budget Limit  [q] Quit",
+            id="footer-bar",
+        )
 
     def action_switch_tab(self, tab_id: str) -> None:
         tabs = self.query_one(TabbedContent)
