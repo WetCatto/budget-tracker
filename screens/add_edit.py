@@ -1,6 +1,7 @@
 from datetime import date
 
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Static
@@ -71,7 +72,37 @@ class AddEditModal(ModalScreen[bool]):
                 yield Button("Cancel", variant="default", id="btn-cancel")
                 yield Button("Save", variant="primary", id="btn-save")
 
+    BINDINGS = [
+        Binding("up", "prev_field", show=False, priority=True),
+        Binding("down", "next_field", show=False, priority=True),
+        Binding("escape", "cancel", show=False, priority=True),
+    ]
+
     _FIELD_ORDER = ["inp-date", "inp-desc", "inp-amount", "inp-cat"]
+
+    def _focused_field_idx(self) -> int | None:
+        focused = self.focused
+        if isinstance(focused, Input):
+            try:
+                return self._FIELD_ORDER.index(focused.id)
+            except ValueError:
+                pass
+        return None
+
+    def action_prev_field(self) -> None:
+        idx = self._focused_field_idx()
+        if idx is not None and idx > 0:
+            self.query_one(f"#{self._FIELD_ORDER[idx - 1]}", Input).focus()
+
+    def action_next_field(self) -> None:
+        idx = self._focused_field_idx()
+        if idx is None:
+            return
+        if idx < len(self._FIELD_ORDER) - 1:
+            self.query_one(f"#{self._FIELD_ORDER[idx + 1]}", Input).focus()
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         try:

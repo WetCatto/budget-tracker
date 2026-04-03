@@ -1,3 +1,4 @@
+import calendar
 from datetime import date
 
 from rich.text import Text
@@ -8,14 +9,17 @@ from textual.widgets import DataTable, Label, Static
 
 import db
 from screens.add_edit import AddEditModal
+from screens.confirm import ConfirmModal
+
+PESO = "₱"
 
 
 class TransactionsPane(Vertical):
     BINDINGS = [
         Binding("e", "edit_selected", "Edit", show=True),
         Binding("d", "delete_selected", "Delete", show=True),
-        Binding("[", "prev_month", "◀ Month", show=True),
-        Binding("]", "next_month", "Month ▶", show=True),
+        Binding("[", "prev_month", "◀ Month", show=True, priority=True),
+        Binding("]", "next_month", "Month ▶", show=True, priority=True),
     ]
 
     DEFAULT_CSS = """
@@ -30,12 +34,6 @@ class TransactionsPane(Vertical):
     #month-label {
         text-style: bold;
         width: auto;
-        margin-right: 2;
-        content-align: left middle;
-    }
-    #hint {
-        color: $text-muted;
-        width: auto;
         content-align: left middle;
     }
     """
@@ -49,7 +47,6 @@ class TransactionsPane(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="filter-bar"):
             yield Static("", id="month-label")
-            yield Static("  [e] Edit  [d] Delete  [ ] Prev  ] Next month", id="hint")
         yield DataTable(id="tx-table", cursor_type="row")
 
     def on_mount(self) -> None:
@@ -58,16 +55,15 @@ class TransactionsPane(Vertical):
         self.refresh_data()
 
     def refresh_data(self) -> None:
-        import calendar
         month_name = calendar.month_name[self._month]
         self.query_one("#month-label", Static).update(
-            Text(f"  {month_name} {self._year}", style="bold")
+            Text(f"  {month_name} {self._year}  ← [ to go back   ] to go forward →", style="bold")
         )
         table = self.query_one("#tx-table", DataTable)
         table.clear()
         for tx in db.get_transactions(self._year, self._month):
             amt = tx["amount"]
-            amt_text = Text(f"${amt:,.2f}", style="green" if amt > 0 else "red")
+            amt_text = Text(f"{PESO}{amt:,.2f}", style="green" if amt > 0 else "red")
             table.add_row(
                 tx["date"], tx["description"], tx["category"], amt_text,
                 key=str(tx["id"]),
@@ -106,12 +102,23 @@ class TransactionsPane(Vertical):
         if tx_id is None:
             self.app.notify("No transaction selected.", severity="warning")
             return
-        db.delete_transaction(tx_id)
-        self.app.notify("Transaction deleted.")
-        self.refresh_data()
-        self.app.query_one("DashboardPane").refresh_data()
-        self.app.query_one("SummaryPane").refresh_data()
-        self.app.query_one("ChartsPane").refresh_data()
+        tx = db.get_transaction(tx_id)
+        if tx is None:
+            return
+
+        def on_confirm(confirmed: bool) -> None:
+            if confirmed:
+                db.delete_transaction(tx_id)
+                self.app.notify("Transaction deleted.")
+                self.refresh_data()
+                self.app.query_one("DashboardPane").refresh_data()
+                self.app.query_one("SummaryPane").refresh_data()
+                self.app.query_one("ChartsPane").refresh_data()
+
+        self.app.push_screen(
+            ConfirmModal(f"Delete \"{tx['description']}\" ({PESO}{tx['amount']:,.2f})?"),
+            on_confirm,
+        )
 
     def action_prev_month(self) -> None:
         if self._month == 1:

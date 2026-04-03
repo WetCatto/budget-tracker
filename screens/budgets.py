@@ -6,6 +6,9 @@ from textual.widgets import DataTable, Label, Static
 
 import db
 from screens.budget_modal import BudgetModal
+from screens.confirm import ConfirmModal
+
+PESO = "₱"
 
 
 class BudgetsPane(Vertical):
@@ -41,7 +44,7 @@ class BudgetsPane(Vertical):
         for b in db.get_budgets():
             table.add_row(
                 b["category"],
-                Text(f"${b['monthly_limit']:,.2f}", style="yellow"),
+                Text(f"{PESO}{b['monthly_limit']:,.2f}", style="yellow"),
                 key=b["category"],
             )
 
@@ -71,7 +74,6 @@ class BudgetsPane(Vertical):
             return
 
         budgets = {b["category"]: b["monthly_limit"] for b in db.get_budgets()}
-        current_limit = budgets.get(category)
 
         def on_dismiss(saved: bool) -> None:
             if saved:
@@ -79,15 +81,26 @@ class BudgetsPane(Vertical):
                 self.app.query_one("DashboardPane").refresh_data()
                 self.app.query_one("SummaryPane").refresh_data()
 
-        self.app.push_screen(BudgetModal(category=category, current_limit=current_limit), on_dismiss)
+        self.app.push_screen(
+            BudgetModal(category=category, current_limit=budgets.get(category)),
+            on_dismiss,
+        )
 
     def action_delete_selected(self) -> None:
         category = self._get_selected_category()
         if category is None:
             self.app.notify("No budget selected.", severity="warning")
             return
-        db.delete_budget(category)
-        self.app.notify(f"Removed budget for: {category}")
-        self.refresh_data()
-        self.app.query_one("DashboardPane").refresh_data()
-        self.app.query_one("SummaryPane").refresh_data()
+
+        def on_confirm(confirmed: bool) -> None:
+            if confirmed:
+                db.delete_budget(category)
+                self.app.notify(f"Removed budget for: {category}")
+                self.refresh_data()
+                self.app.query_one("DashboardPane").refresh_data()
+                self.app.query_one("SummaryPane").refresh_data()
+
+        self.app.push_screen(
+            ConfirmModal(f"Delete budget limit for \"{category}\"?"),
+            on_confirm,
+        )

@@ -7,19 +7,29 @@ from textual.widgets import DataTable, Label, Static
 
 import db
 
+PESO = "₱"
+
 
 class DashboardPane(Vertical):
     DEFAULT_CSS = """
     DashboardPane {
         padding: 1 2;
     }
-    #balance {
-        text-style: bold;
+    #header-row {
         height: 3;
-        content-align: left middle;
         padding: 0 1;
         border: round $primary;
         margin-bottom: 1;
+    }
+    #balance {
+        text-style: bold;
+        width: 1fr;
+        content-align: left middle;
+    }
+    #today {
+        width: auto;
+        content-align: right middle;
+        color: $text-muted;
     }
     #warnings {
         height: auto;
@@ -38,7 +48,10 @@ class DashboardPane(Vertical):
     """
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="balance")
+        from textual.containers import Horizontal
+        with Horizontal(id="header-row"):
+            yield Static("", id="balance")
+            yield Static("", id="today")
         yield Label("Budget Warnings", id="warnings-title")
         yield Static("", id="warnings")
         yield Label("Recent Transactions (this month)", id="recent-title")
@@ -57,7 +70,12 @@ class DashboardPane(Vertical):
         balance = db.get_monthly_balance(year, month)
         color = "green" if balance >= 0 else "red"
         self.query_one("#balance", Static).update(
-            Text(f"  This month's balance: ${balance:,.2f}", style=f"bold {color}")
+            Text(f"  This month's balance: {PESO}{balance:,.2f}", style=f"bold {color}")
+        )
+
+        # Today's date
+        self.query_one("#today", Static).update(
+            Text(f"{today.strftime('%A, %B %d %Y')}  ", style="")
         )
 
         # Budget warnings
@@ -66,8 +84,8 @@ class DashboardPane(Vertical):
             lines = []
             for w in warnings:
                 lines.append(
-                    f"  ⚠  {w['category']}: spent ${w['spent']:.2f} "
-                    f"(limit ${w['limit']:.2f}, over by ${w['over_by']:.2f})"
+                    f"  ⚠  {w['category']}: spent {PESO}{w['spent']:,.2f} "
+                    f"(limit {PESO}{w['limit']:,.2f}, over by {PESO}{w['over_by']:,.2f})"
                 )
             self.query_one("#warnings", Static).update(
                 Text("\n".join(lines), style="bold red")
@@ -82,5 +100,5 @@ class DashboardPane(Vertical):
         table.clear()
         for tx in db.get_transactions(year, month)[:10]:
             amt = tx["amount"]
-            amt_text = Text(f"${amt:,.2f}", style="green" if amt > 0 else "red")
+            amt_text = Text(f"{PESO}{amt:,.2f}", style="green" if amt > 0 else "red")
             table.add_row(tx["date"], tx["description"], tx["category"], amt_text)

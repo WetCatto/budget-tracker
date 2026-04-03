@@ -1,9 +1,12 @@
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label
 
 import db
+
+PESO = "₱"
 
 
 class BudgetModal(ModalScreen[bool]):
@@ -37,6 +40,10 @@ class BudgetModal(ModalScreen[bool]):
     }
     """
 
+    BINDINGS = [
+        Binding("escape", "cancel", show=False, priority=True),
+    ]
+
     def __init__(self, category=None, current_limit=None):
         super().__init__()
         self.existing_category = category
@@ -55,11 +62,11 @@ class BudgetModal(ModalScreen[bool]):
                 placeholder="e.g. Food",
                 disabled=bool(self.existing_category),
             )
-            yield Label("Monthly limit ($):", classes="field-label")
+            yield Label(f"Monthly limit ({PESO}):", classes="field-label")
             yield Input(
                 value=str(self.current_limit) if self.current_limit else "",
                 id="inp-limit",
-                placeholder="e.g. 500",
+                placeholder="e.g. 5000",
             )
             with Horizontal(id="buttons"):
                 yield Button("Cancel", variant="default", id="btn-cancel")
@@ -86,5 +93,8 @@ class BudgetModal(ModalScreen[bool]):
             return
 
         db.set_budget(cat_val, limit)
-        self.app.notify(f"Budget set: {cat_val} → ${limit:,.2f}/mo")
+        self.app.notify(f"Budget set: {cat_val} → {PESO}{limit:,.2f}/mo")
         self.dismiss(True)
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
