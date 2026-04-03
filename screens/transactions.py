@@ -5,7 +5,7 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import DataTable, Label, Static
+from textual.widgets import DataTable, Static
 
 import db
 from screens.add_edit import AddEditModal
@@ -16,18 +16,14 @@ PESO = "₱"
 
 class TransactionsPane(Vertical):
     BINDINGS = [
-        Binding("e", "edit_selected", "Edit", show=True),
-        Binding("d", "delete_selected", "Delete", show=True),
-        Binding("[", "prev_month", "◀ Month", show=True, priority=True),
-        Binding("]", "next_month", "Month ▶", show=True, priority=True),
+        Binding("e", "edit_selected",   "Edit Transaction",   show=True),
+        Binding("d", "delete_selected", "Delete Transaction", show=True),
     ]
 
     DEFAULT_CSS = """
-    TransactionsPane {
-        padding: 1 2;
-    }
+    TransactionsPane { padding: 1 2; }
     #filter-bar {
-        height: 3;
+        height: 2;
         align: left middle;
         margin-bottom: 1;
     }
@@ -57,7 +53,7 @@ class TransactionsPane(Vertical):
     def refresh_data(self) -> None:
         month_name = calendar.month_name[self._month]
         self.query_one("#month-label", Static).update(
-            Text(f"  {month_name} {self._year}  ← [ to go back   ] to go forward →", style="bold")
+            Text(f"  {month_name} {self._year}   < prev month   > next month", style="bold")
         )
         table = self.query_one("#tx-table", DataTable)
         table.clear()
@@ -116,22 +112,21 @@ class TransactionsPane(Vertical):
                 self.app.query_one("ChartsPane").refresh_data()
 
         self.app.push_screen(
-            ConfirmModal(f"Delete \"{tx['description']}\" ({PESO}{tx['amount']:,.2f})?"),
+            ConfirmModal(
+                f"Delete Transaction",
+                f"\"{tx['description']}\"  {PESO}{tx['amount']:,.2f}  on {tx['date']}",
+            ),
             on_confirm,
         )
 
     def action_prev_month(self) -> None:
-        if self._month == 1:
-            self._month = 12
+        self._month = 12 if self._month == 1 else self._month - 1
+        if self._month == 12:
             self._year -= 1
-        else:
-            self._month -= 1
         self.refresh_data()
 
     def action_next_month(self) -> None:
-        if self._month == 12:
-            self._month = 1
+        self._month = 1 if self._month == 12 else self._month + 1
+        if self._month == 1:
             self._year += 1
-        else:
-            self._month += 1
         self.refresh_data()

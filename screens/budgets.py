@@ -7,30 +7,34 @@ from textual.widgets import DataTable, Label, Static
 import db
 from screens.budget_modal import BudgetModal
 from screens.confirm import ConfirmModal
+from screens.daily_budget_modal import DailyBudgetModal
 
 PESO = "₱"
 
 
 class BudgetsPane(Vertical):
     BINDINGS = [
-        Binding("n", "add_budget", "Add Budget", show=True),
-        Binding("e", "edit_selected", "Edit", show=True),
-        Binding("d", "delete_selected", "Delete", show=True),
+        Binding("n", "add_budget",      "Add Budget Limit",   show=True),
+        Binding("e", "edit_selected",   "Edit Budget Limit",  show=True),
+        Binding("d", "delete_selected", "Delete Budget Limit", show=True),
+        Binding("s", "set_daily",       "Set Daily Budget",   show=True),
     ]
 
     DEFAULT_CSS = """
-    BudgetsPane {
-        padding: 1 2;
-    }
-    #hint {
-        color: $text-muted;
+    BudgetsPane { padding: 1 2; }
+    #daily-info {
+        height: 3;
+        padding: 0 1;
+        border: round $accent;
         margin-bottom: 1;
+        content-align: left middle;
     }
+    #hint { color: $text-muted; margin-bottom: 1; }
     """
 
     def compose(self) -> ComposeResult:
-        yield Label("Monthly Budget Limits", id="title")
-        yield Static("[n] Add  [e] Edit  [d] Delete", id="hint")
+        yield Static("", id="daily-info")
+        yield Static("[n] Add limit  [e] Edit limit  [d] Delete limit  [s] Set daily budget", id="hint")
         yield DataTable(id="budget-table", cursor_type="row")
 
     def on_mount(self) -> None:
@@ -39,6 +43,19 @@ class BudgetsPane(Vertical):
         self.refresh_data()
 
     def refresh_data(self) -> None:
+        # Daily budget line
+        daily = db.get_daily_budget()
+        daily_widget = self.query_one("#daily-info", Static)
+        if daily:
+            daily_widget.update(
+                Text(f"  Daily Budget: {PESO}{daily:,.2f} / day   [s] to change", style="bold")
+            )
+        else:
+            daily_widget.update(
+                Text(f"  No daily budget set.  Press [s] to set one.", style="bold $text-muted")
+            )
+
+        # Monthly limits table
         table = self.query_one("#budget-table", DataTable)
         table.clear()
         for b in db.get_budgets():
@@ -58,49 +75,45 @@ class BudgetsPane(Vertical):
         except Exception:
             return None
 
-    def action_add_budget(self) -> None:
-        def on_dismiss(saved: bool) -> None:
-            if saved:
-                self.refresh_data()
-                self.app.query_one("DashboardPane").refresh_data()
-                self.app.query_one("SummaryPane").refresh_data()
+    def _on_saved(self, saved: bool) -> None:
+        if saved:
+            self.refresh_data()
+            self.app.query_one("DashboardPane").refresh_data()
+            self.app.query_one("SummaryPane").refresh_data()
 
-        self.app.push_screen(BudgetModal(), on_dismiss)
+    def action_add_budget(self) -> None:
+        self.app.push_screen(BudgetModal(), self._on_saved)
 
     def action_edit_selected(self) -> None:
         category = self._get_selected_category()
         if category is None:
-            self.app.notify("No budget selected.", severity="warning")
+            self.app.notify("Select a budget limit first.", severity="warning")
             return
-
         budgets = {b["category"]: b["monthly_limit"] for b in db.get_budgets()}
-
-        def on_dismiss(saved: bool) -> None:
-            if saved:
-                self.refresh_data()
-                self.app.query_one("DashboardPane").refresh_data()
-                self.app.query_one("SummaryPane").refresh_data()
-
         self.app.push_screen(
             BudgetModal(category=category, current_limit=budgets.get(category)),
-            on_dismiss,
+            self._on_saved,
         )
 
     def action_delete_selected(self) -> None:
         category = self._get_selected_category()
         if category is None:
-            self.app.notify("No budget selected.", severity="warning")
+            self.app.notify("Select a budget limit first.", severity="warning")
             return
 
         def on_confirm(confirmed: bool) -> None:
             if confirmed:
                 db.delete_budget(category)
-                self.app.notify(f"Removed budget for: {category}")
-                self.refresh_data()
-                self.app.query_one("DashboardPane").refresh_data()
-                self.app.query_one("SummaryPane").refresh_data()
+                self.app.notify(f"Removed budget limit for: {category}")
+                self._on_saved(True)
 
         self.app.push_screen(
-            ConfirmModal(f"Delete budget limit for \"{category}\"?"),
+            ConfirmModal(
+                "Delete Budget Limit",
+                f"Remove the monthly limit for \"{category}\"?",
+            ),
             on_confirm,
         )
+
+    def action_set_daily(self) -> None:
+        self.app.push_screen(DailyBudgetModal(), self._on_saved)

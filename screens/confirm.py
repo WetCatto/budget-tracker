@@ -11,13 +11,19 @@ class ConfirmModal(ModalScreen[bool]):
         align: center middle;
     }
     #dialog {
-        width: 50;
+        width: 54;
         height: auto;
         padding: 1 2;
         background: $surface;
         border: thick $error;
     }
-    #msg {
+    #title {
+        text-style: bold;
+        color: $error;
+        margin-bottom: 1;
+    }
+    #detail {
+        color: $text-muted;
         margin-bottom: 2;
     }
     #buttons {
@@ -29,20 +35,21 @@ class ConfirmModal(ModalScreen[bool]):
     }
     """
 
-    BINDINGS = [
-        Binding("escape", "dismiss_no", show=False, priority=True),
-    ]
+    BINDINGS = [Binding("escape", "dismiss_no", show=False, priority=True)]
 
-    def __init__(self, message: str):
+    def __init__(self, title: str, detail: str = ""):
         super().__init__()
-        self._message = message
+        self._title = title
+        self._detail = detail
 
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog"):
-            yield Label(self._message, id="msg")
+            yield Label(self._title, id="title")
+            if self._detail:
+                yield Label(self._detail, id="detail")
             with Horizontal(id="buttons"):
                 yield Button("Cancel", variant="default", id="btn-no")
-                yield Button("Delete", variant="error", id="btn-yes")
+                yield Button("Delete", variant="error",   id="btn-yes")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(event.button.id == "btn-yes")

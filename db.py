@@ -24,8 +24,14 @@ def init_db():
                 category TEXT PRIMARY KEY,
                 monthly_limit REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
         """)
 
+
+# ── Transactions ──────────────────────────────────────────────────────────────
 
 def get_transactions(year=None, month=None, category=None):
     query = "SELECT * FROM transactions WHERE 1=1"
@@ -77,6 +83,16 @@ def get_categories():
         return [r["category"] for r in rows]
 
 
+def get_recent_descriptions():
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT description FROM transactions ORDER BY description"
+        ).fetchall()
+        return [r["description"] for r in rows]
+
+
+# ── Balances & summaries ──────────────────────────────────────────────────────
+
 def get_monthly_balance(year, month):
     with get_conn() as conn:
         result = conn.execute(
@@ -87,8 +103,19 @@ def get_monthly_balance(year, month):
         return result["total"]
 
 
+def get_today_spending():
+    from datetime import date
+    today = date.today().isoformat()
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(ABS(SUM(amount)), 0) as total "
+            "FROM transactions WHERE date = ? AND amount < 0",
+            (today,),
+        ).fetchone()
+        return row["total"]
+
+
 def get_monthly_summary(year, month):
-    """Returns rows of (category, income, spent, monthly_limit) for the month."""
     with get_conn() as conn:
         return conn.execute(
             """
@@ -108,7 +135,6 @@ def get_monthly_summary(year, month):
 
 
 def get_budget_warnings(year, month):
-    """Returns list of (category, spent, limit, over_by) for over-budget categories."""
     rows = get_monthly_summary(year, month)
     warnings = []
     for r in rows:
@@ -121,6 +147,39 @@ def get_budget_warnings(year, month):
             })
     return warnings
 
+
+def get_spending_by_category(year, month):
+    with get_conn() as conn:
+        return conn.execute(
+            """
+            SELECT category, ABS(SUM(amount)) AS total
+            FROM transactions
+            WHERE strftime('%Y-%m', date) = ? AND amount < 0
+            GROUP BY category
+            ORDER BY total DESC
+            """,
+            (f"{year:04d}-{month:02d}",),
+        ).fetchall()
+
+
+def get_monthly_totals(num_months=6):
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT strftime('%Y-%m', date) AS month,
+                   COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
+                   COALESCE(ABS(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END)), 0) AS expenses
+            FROM transactions
+            GROUP BY month
+            ORDER BY month DESC
+            LIMIT ?
+            """,
+            (num_months,),
+        ).fetchall()
+        return list(reversed(rows))
+
+
+# ── Monthly budgets ───────────────────────────────────────────────────────────
 
 def get_budgets():
     with get_conn() as conn:
@@ -140,34 +199,28 @@ def delete_budget(category):
         conn.execute("DELETE FROM budgets WHERE category=?", (category,))
 
 
-def get_spending_by_category(year, month):
-    """Returns list of (category, total_spent) for expenses in the month."""
+# ── Settings (daily budget, etc.) ─────────────────────────────────────────────
+
+def get_setting(key):
     with get_conn() as conn:
-        return conn.execute(
-            """
-            SELECT category, ABS(SUM(amount)) AS total
-            FROM transactions
-            WHERE strftime('%Y-%m', date) = ? AND amount < 0
-            GROUP BY category
-            ORDER BY total DESC
-            """,
-            (f"{year:04d}-{month:02d}",),
-        ).fetchall()
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row else None
 
 
-def get_monthly_totals(num_months=6):
-    """Returns last N months with income and expense totals, oldest first."""
+def set_setting(key, value):
     with get_conn() as conn:
-        rows = conn.execute(
-            """
-            SELECT strftime('%Y-%m', date) AS month,
-                   COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) AS income,
-                   COALESCE(ABS(SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END)), 0) AS expenses
-            FROM transactions
-            GROUP BY month
-            ORDER BY month DESC
-            LIMIT ?
-            """,
-            (num_months,),
-        ).fetchall()
-        return list(reversed(rows))
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+            (key, str(value)),
+        )
+
+
+def get_daily_budget():
+    val = get_setting("daily_budget")
+    return float(val) if val else None
+
+
+def set_daily_budget(amount):
+    set_setting("daily_budget", amount)

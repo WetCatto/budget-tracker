@@ -3,7 +3,6 @@ from datetime import date
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widgets import DataTable, Static
 
@@ -13,19 +12,9 @@ PESO = "₱"
 
 
 class SummaryPane(Vertical):
-    BINDINGS = [
-        Binding("[", "prev_month", "◀ Month", show=True, priority=True),
-        Binding("]", "next_month", "Month ▶", show=True, priority=True),
-    ]
-
     DEFAULT_CSS = """
-    SummaryPane {
-        padding: 1 2;
-    }
-    #month-label {
-        text-style: bold;
-        margin-bottom: 1;
-    }
+    SummaryPane { padding: 1 2; }
+    #month-label { text-style: bold; margin-bottom: 1; }
     #totals {
         height: 5;
         padding: 0 1;
@@ -52,23 +41,21 @@ class SummaryPane(Vertical):
 
     def refresh_data(self) -> None:
         month_name = calendar.month_name[self._month]
-        # Use Text() so [ and ] are literal, not Rich markup
         self.query_one("#month-label", Static).update(
-            Text(f"  Monthly Summary — {month_name} {self._year}   [ Prev month   ] Next month", style="bold")
+            Text(f"  Monthly Summary — {month_name} {self._year}   < prev month   > next month", style="bold")
         )
 
         rows = db.get_monthly_summary(self._year, self._month)
-
         total_income = sum(r["income"] for r in rows)
-        total_spent = sum(r["spent"] for r in rows)
+        total_spent  = sum(r["spent"]  for r in rows)
         net = total_income - total_spent
-        net_color = "green" if net >= 0 else "red"
 
-        totals_text = Text()
-        totals_text.append(f"  Total Income:   {PESO}{total_income:>10,.2f}\n", style="green")
-        totals_text.append(f"  Total Expenses: {PESO}{total_spent:>10,.2f}\n", style="red")
-        totals_text.append(f"  Net:            {PESO}{net:>10,.2f}", style=f"bold {net_color}")
-        self.query_one("#totals", Static).update(totals_text)
+        t = Text()
+        t.append(f"  Total Income:   {PESO}{total_income:>10,.2f}\n", style="green")
+        t.append(f"  Total Expenses: {PESO}{total_spent:>10,.2f}\n",  style="red")
+        t.append(f"  Net:            {PESO}{net:>10,.2f}",
+                 style=f"bold {'green' if net >= 0 else 'red'}")
+        self.query_one("#totals", Static).update(t)
 
         table = self.query_one("#summary-table", DataTable)
         table.clear()
@@ -88,10 +75,13 @@ class SummaryPane(Vertical):
                 remaining_text = Text("—")
                 limit_text = Text("—")
 
-            spent_text = Text(f"{PESO}{spent:,.2f}", style="red" if spent > 0 else "")
-            income_text = Text(f"{PESO}{income:,.2f}", style="green" if income > 0 else "")
-
-            table.add_row(r["category"], income_text, spent_text, limit_text, remaining_text)
+            table.add_row(
+                r["category"],
+                Text(f"{PESO}{income:,.2f}", style="green" if income > 0 else ""),
+                Text(f"{PESO}{spent:,.2f}",  style="red"   if spent  > 0 else ""),
+                limit_text,
+                remaining_text,
+            )
 
     def action_prev_month(self) -> None:
         if self._month == 1:

@@ -16,7 +16,9 @@ def cli():
     args = sys.argv[1:]
 
     if not args or args[0] != "add":
-        # Launch TUI
+        # Launch TUI — init DB first so all tables exist before widgets mount
+        import db as _db
+        _db.init_db()
         from app import BudgetApp
         BudgetApp().run()
         return

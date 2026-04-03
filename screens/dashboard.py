@@ -2,7 +2,7 @@ from datetime import date
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.widgets import DataTable, Label, Static
 
 import db
@@ -31,6 +31,13 @@ class DashboardPane(Vertical):
         content-align: right middle;
         color: $text-muted;
     }
+    #daily-bar {
+        height: 3;
+        padding: 0 1;
+        border: round $accent;
+        margin-bottom: 1;
+        content-align: left middle;
+    }
     #warnings {
         height: auto;
         padding: 0 1;
@@ -48,10 +55,10 @@ class DashboardPane(Vertical):
     """
 
     def compose(self) -> ComposeResult:
-        from textual.containers import Horizontal
         with Horizontal(id="header-row"):
             yield Static("", id="balance")
             yield Static("", id="today")
+        yield Static("", id="daily-bar")
         yield Label("Budget Warnings", id="warnings-title")
         yield Static("", id="warnings")
         yield Label("Recent Transactions (this month)", id="recent-title")
@@ -66,7 +73,7 @@ class DashboardPane(Vertical):
         today = date.today()
         year, month = today.year, today.month
 
-        # Balance
+        # Monthly balance
         balance = db.get_monthly_balance(year, month)
         color = "green" if balance >= 0 else "red"
         self.query_one("#balance", Static).update(
@@ -75,18 +82,34 @@ class DashboardPane(Vertical):
 
         # Today's date
         self.query_one("#today", Static).update(
-            Text(f"{today.strftime('%A, %B %d %Y')}  ", style="")
+            Text(f"{today.strftime('%A, %B %d %Y')}  ")
         )
+
+        # Daily budget bar
+        daily_budget = db.get_daily_budget()
+        today_spending = db.get_today_spending()
+        daily_widget = self.query_one("#daily-bar", Static)
+        if daily_budget:
+            remaining = daily_budget - today_spending
+            color = "green" if remaining >= 0 else "bold red"
+            t = Text()
+            t.append(f"  Today: spent {PESO}{today_spending:,.2f}", style="")
+            t.append(f"  /  daily budget {PESO}{daily_budget:,.2f}", style="")
+            t.append(f"  →  {PESO}{remaining:,.2f} remaining", style=color)
+            daily_widget.update(t)
+        else:
+            daily_widget.update(
+                Text(f"  Today: spent {PESO}{today_spending:,.2f}  (no daily budget set — press [s] in Budgets tab)")
+            )
 
         # Budget warnings
         warnings = db.get_budget_warnings(year, month)
         if warnings:
-            lines = []
-            for w in warnings:
-                lines.append(
-                    f"  ⚠  {w['category']}: spent {PESO}{w['spent']:,.2f} "
-                    f"(limit {PESO}{w['limit']:,.2f}, over by {PESO}{w['over_by']:,.2f})"
-                )
+            lines = [
+                f"  ⚠  {w['category']}: spent {PESO}{w['spent']:,.2f} "
+                f"(limit {PESO}{w['limit']:,.2f}, over by {PESO}{w['over_by']:,.2f})"
+                for w in warnings
+            ]
             self.query_one("#warnings", Static).update(
                 Text("\n".join(lines), style="bold red")
             )

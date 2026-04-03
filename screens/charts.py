@@ -3,21 +3,18 @@ from datetime import date
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Vertical
 from textual.widgets import Static
-from textual.scroll_view import ScrollView
 
 import db
 
 PESO = "₱"
 
 
-def _build_chart(title: str, labels: list, values: list, width: int = 68, height: int = 12) -> Text:
-    """Render a horizontal bar chart using plotext, fallback to ASCII if unavailable."""
+def _build_chart(title: str, labels: list, values: list,
+                 width: int = 60, height: int = 8) -> Text:
     try:
         import plotext as plt
-
         plt.clf()
         plt.theme("dark")
         plt.title(title)
@@ -29,21 +26,15 @@ def _build_chart(title: str, labels: list, values: list, width: int = 68, height
         if not values:
             lines.append("  (no data)")
             return Text("\n".join(lines))
-        max_val = max(values) if values else 1
-        bar_width = 30
+        max_val = max(values)
         for label, val in zip(labels, values):
-            filled = int((val / max_val) * bar_width)
-            bar = "█" * filled + "░" * (bar_width - filled)
-            lines.append(f"  {label:15s} {bar} {PESO}{val:,.2f}")
+            filled = int((val / max_val) * 28)
+            bar = "█" * filled + "░" * (28 - filled)
+            lines.append(f"  {label:14s} {bar} {PESO}{val:,.2f}")
         return Text("\n".join(lines))
 
 
 class ChartsPane(Vertical):
-    BINDINGS = [
-        Binding("[", "prev_month", "◀ Month", show=True, priority=True),
-        Binding("]", "next_month", "Month ▶", show=True, priority=True),
-    ]
-
     DEFAULT_CSS = """
     ChartsPane {
         padding: 1 2;
@@ -54,13 +45,13 @@ class ChartsPane(Vertical):
         margin-bottom: 1;
     }
     #chart-category {
-        height: 14;
-        margin-bottom: 1;
+        height: 11;
         border: round $primary;
         padding: 0 1;
+        margin-bottom: 2;
     }
     #chart-monthly {
-        height: 14;
+        height: 11;
         border: round $accent;
         padding: 0 1;
     }
@@ -82,25 +73,24 @@ class ChartsPane(Vertical):
 
     def refresh_data(self) -> None:
         month_name = calendar.month_name[self._month]
-        # Use Text() so [ and ] are literal, not Rich markup
         self.query_one("#month-label", Static).update(
-            Text(f"  Charts — {month_name} {self._year}   [ Prev month   ] Next month", style="bold")
+            Text(f"  Charts — {month_name} {self._year}   < prev month   > next month", style="bold")
         )
 
         rows = db.get_spending_by_category(self._year, self._month)
-        labels = [r["category"] for r in rows] if rows else []
-        values = [r["total"] for r in rows] if rows else []
-
+        labels = [r["category"] for r in rows]
+        values = [r["total"]    for r in rows]
         self.query_one("#chart-category", Static).update(
             _build_chart(f"Spending by Category — {month_name} {self._year}", labels, values)
         )
 
         monthly = db.get_monthly_totals(6)
-        m_labels = [r["month"] for r in monthly] if monthly else []
-        m_expenses = [r["expenses"] for r in monthly] if monthly else []
-
         self.query_one("#chart-monthly", Static).update(
-            _build_chart("Monthly Expenses (last 6 months)", m_labels, m_expenses)
+            _build_chart(
+                "Monthly Expenses (last 6 months)",
+                [r["month"]    for r in monthly],
+                [r["expenses"] for r in monthly],
+            )
         )
 
     def action_prev_month(self) -> None:
